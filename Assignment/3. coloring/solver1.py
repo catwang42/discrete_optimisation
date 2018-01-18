@@ -4,6 +4,14 @@ import networkx as nx
 import networkx.algorithms.approximation as apxa
 import time
 
+#create graphs from networkx libs 
+def get_graph(node_count, edges):
+    G = nx.Graph()
+    nodes = list(range(node_count))
+    G.add_nodes_from(nodes);
+    G.add_edges_from(edges);
+    return G
+
 
 def remap(nodes):
     color_map = {}
@@ -11,6 +19,7 @@ def remap(nodes):
     result = []
     
     for node_color in nodes:
+        # read the color of the map and conver it to number 
         if not node_color in color_map:
             current_color = current_color + 1
             color_map[node_color] = current_color
@@ -20,10 +29,9 @@ def remap(nodes):
 
 
 def cp_solve(edges, node_count, cliques, presets, max_allowed_colors, timeout):
+    #define solver 
     solver = pywraplp.Solver('CP is fun!', pywraplp.Solver.CBC_MIXED_INTEGER_PROGRAMMING);
-# GLPK_MIXED_INTEGER_PROGRAMMING
-# CBC_MIXED_INTEGER_PROGRAMMING
-# SCIP_MIXED_INTEGER_PROGRAMMING
+
 
     print( "solving with " + str(max_allowed_colors) + " colors")
 
@@ -164,16 +172,17 @@ def solve_it(input_data):
     node_count = int(first_line[0])
     edge_count = int(first_line[1])
 
+    #create a list of edges list 
     edges = []
     for i in range(1, edge_count + 1):
         line = lines[i]
         parts = line.split()
         edges.append((int(parts[0]), int(parts[1])))
-        
+    
+    #create a graph     
     G = get_graph(node_count, edges)
     
     #solution = super_greedy(G)
-
     presets = preset_most_connected(G, 12)
     print (presets)
 
