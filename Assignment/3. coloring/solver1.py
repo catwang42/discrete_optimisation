@@ -19,11 +19,17 @@ def remap(nodes):
     return result
 
     cp_solve(edges, node_count, cliques, presets, max(solution), 20 * 1000)
+
+#edges liss
+#node count 
+#cliques in graph 
+#preset color for mosted connected nodes 
+#max color for the graph(fully connected) node_count
+#set timeout   
 def cp_solve(edges, node_count, cliques, presets, max_allowed_colors, timeout):
     #define solver 
-    solver = pywraplp.Solver('CP is fun!', pywraplp.Solver.CBC_MIXED_INTEGER_PROGRAMMING);
-
-
+    solver = pywraplp.Solver('mixInterger_solver', pywraplp.Solver.CBC_MIXED_INTEGER_PROGRAMMING);
+    
     print( "solving with " + str(max_allowed_colors) + " colors")
 
     colors = list(range(max_allowed_colors))
@@ -33,23 +39,24 @@ def cp_solve(edges, node_count, cliques, presets, max_allowed_colors, timeout):
 
     for node in nodes:
         node_colors = nodes_colors[node]
-        solver.Add ( solver.Sum(node_colors) == 1 ) # one color per node
+        solver.Add(solver.Sum(node_colors) == 1 ) # one constraint 1 color per node
         for color in colors:
-            solver.Add( obj >= color*node_colors[color] )
+            solver.Add( obj >= color*node_colors[color] ) # ?? 
     
     for edge in edges:
-        print (edge)
-        left = nodes_colors[edge[0]]
+        left = nodes_colors[edge[0]] 
         right = nodes_colors[edge[1]]
         for color in colors:
             solver.Add ( left[color] + right[color] <= 1  ) # Different colors
 
+    
     for (node, value) in presets:
         for color in colors:
             solver.Add(nodes_colors[node][color] == (color == value))
 
-    #for clique in cliques:
-    #    solver.Add(solver.AllDifferent([nodes_values[node] for node in clique]))
+    #all nodes in cliques are different         
+    for clique in cliques:
+        solver.Add(solver.AllDifferent([nodes_values[node] for node in clique]))
         
 
     objective = solver.Minimize(obj)
@@ -88,6 +95,7 @@ def cp_solve(edges, node_count, cliques, presets, max_allowed_colors, timeout):
                            
     return remap(solution)
 
+#create the graph 
 def get_graph(node_count, edges):
     G = nx.Graph()
     nodes = list(range(node_count))
@@ -95,7 +103,7 @@ def get_graph(node_count, edges):
     G.add_edges_from(edges);
     return G
 
-
+#preset the color for the top n degree nodes 
 def preset(node, neighbors, presets):
     if not node in presets:
         values = sorted([presets[n] for n in neighbors if n in presets])
@@ -108,11 +116,13 @@ def preset(node, neighbors, presets):
                     break
         presets[node] = value
 
+#sort the nodes by degrees 
 def sorted_by_degree(G):
     degrees = [(node, nx.degree(G, node)) for node in G]    
     degrees = sorted(degrees, key=lambda t: -t[1])
     return degrees
 
+#find out the mosted connected nodes 
 def preset_most_connected(G, limit):
     degrees = sorted_by_degree(G)
     most_connected = degrees[:limit]
@@ -124,6 +134,7 @@ def preset_most_connected(G, limit):
     
     return [(node, presets[node]) for node in presets]
 
+#find the cliques 
 def cliques_for_nodes(G, nodes):
     return [apxa.max_clique(G)]
 
@@ -131,14 +142,11 @@ def cliques_for_nodes(G, nodes):
 
 def super_greedy(G):
     degrees = sorted_by_degree(G)
-
     tabu = set()
-
     nodes = len(degrees)
 
     solution = [-1] * nodes
     solved = 0
-
     current_color = 0
 
     while(solved < nodes):
@@ -159,7 +167,6 @@ def solve_it(input_data):
 
     # parse the input
     lines = input_data.split('\n')
-
     first_line = lines[0].split()
     node_count = int(first_line[0])
     edge_count = int(first_line[1])
@@ -173,21 +180,18 @@ def solve_it(input_data):
     
     #create a graph     
     G = get_graph(node_count, edges)
-    
     #solution = super_greedy(G)
     #######################################my code start##############################################
 
     presets = preset_most_connected(G, 12)
-    print (presets)
-
+    #print (presets)
     cliques = cliques_for_nodes(G, [preset[0] for preset in presets])
-    print (cliques)
-
+    #print (cliques)
     solution = [node_count]
     
     for lap in range(5):
-        solution = cp_solve(edges, node_count, cliques, presets, max(solution), 20 * 1000)
-        print (solution)
+        solution = cp_solve(edges, node_count, cliques, presets, max(solution), 20 * 2000)
+        #print (solution)
 
     color_count = max(solution) + 1
     #######################################my code start##############################################

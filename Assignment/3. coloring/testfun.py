@@ -53,14 +53,14 @@ def preset_most_connected(graph, limit):
     most_connected = degrees[:limit]
     
     presets = {}
-    for (node, degree) in most_connected:
+    for node, degree in most_connected:
         neighbors = [n for n in graph[node]]
         print('neighbors for node', node, ':',neighbors)
         preset(node, neighbors, presets)
     
     return [(node, presets[node]) for node in presets]
 
-def cliques_for_nodes(graph, nodes):
+def cliques_for_nodes(graph):
     return [apprx.max_clique(graph)]
 
 
@@ -87,8 +87,6 @@ def super_greedy(graph,node_count):
     return solution
 
 
-
-
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
 
@@ -106,7 +104,7 @@ def solve_it(input_data):
         edges.append((int(parts[0]), int(parts[1])))
     
     # build a trivial solution
-    # every node has its own color
+    #every node has its own color
     #solution = range(0, node_count)
 
     #######################################my code start##############################################
@@ -117,6 +115,8 @@ def solve_it(input_data):
     #solution = super_greedy(graph_undi,node_count)
     
     #use conditioning programming 
+    cliques_all = cliques_for_nodes(graph_undi)
+
     present = preset_most_connected(graph_undi,10)
     #######################################my code end##############################################
 
@@ -126,6 +126,8 @@ def solve_it(input_data):
 
     output_data = 'sorted_graph:', ' '.join(map(str, sorted_graph ))+ '\n'
     print (present)
+    print("Get the cliques: ")
+    print(cliques_all)
 
     return output_data
 
