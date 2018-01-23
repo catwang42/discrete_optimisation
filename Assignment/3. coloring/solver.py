@@ -14,10 +14,12 @@
 
 #from ortools.constraints_solver import pywrapcp
 from ortools.constraint_solver import pywrapcp
+from ortools.constraint_solver import solver_parameters_pb2
 import networkx as nx 
 import networkx.algorithms.approximation as apxa
 import time 
 
+#created a undirected graph 
 def create_graph(node_count,edges):
     G = nx.Graph()
     nodes = list(range(node_count))
@@ -32,7 +34,7 @@ def sorted_by_degree(graph):
     return degrees 
 
 #for the most connected nodes, preset color for them 
-#set limited manually 
+#set limited manually, top 10
 def most_connected_node(graph, limit):
     degrees = sorted_by_degree(graph)
     most_connected = degrees[: limit] 
@@ -43,6 +45,7 @@ def most_connected_node(graph, limit):
         setcolor(node, neighbours, preset_colors)
     return [(node, preset_colors[node]) for node in preset_colors]
 
+#set color for the node with the highest degree
 def setcolor(node,neighbours, preset_colors):
     if node not in preset_colors:
         #loops throught all the neighbours, see if any color in already in the preset color list
@@ -65,6 +68,7 @@ def super_greedy(graph,node_count):
     #remove the top limited degree of nodes 
     #remove the ones in cliques
     degrees_nodes = sorted_by_degree(graph)
+
     tabu = set()
     nodes = node_count
     solution = [-1]*nodes #initialize with -1 
@@ -81,7 +85,7 @@ def super_greedy(graph,node_count):
         tabu = set()        
         cur_color+=1
 
-    print("color used in total:" , cur_color)
+    #print("color used in total:" , cur_color)
     return solution
     #use this as upper bound 
     #return cur_color
@@ -102,24 +106,74 @@ def remap(nodes):
 
     cp_solve(edges, node_count, cliques, presets)
 
-def cp_solver(edges, node_count, cliques, presets):
+def cp_solver(edges, node_count, presets,lower,upper):
+    '''
+    #using constraint programming solver only 
     solver = pywrapcp.Solver("coloring")
-
-    colors = list(range(node_count))
-    nodes = list(range(node_count))
-    node_color_arry = [solver.IntVar(0,node_count-1,'color%i' % i) for i in nodes] 
-
-    obj = solver.IntVar(1, node_count,'objective')
 
     for edge in edges:
         solver.Add(node_color_arry[edge[0]] != node_color_arry[edge[1]])
+    '''
 
-        
+    
+    parameters = pywrapcp.Solver.DefaultSolverParameters()
+    solver = pywrapcp.Solver('simple_CP', parameters)
+    #colors = list(range(node_count))
+    nodes = list(range(node_count))
+    node_color_list = [solver.IntVar(0, node_count-1,'color%i' % i) for i in nodes] 
+   
+    # solver.Add(obj == max(node_color_list)+1)
+    ###############constraints####################################################################
+    #1.all the nodes in the cliques are different 
+
+    #2.symemetrics breaking 
+    #for node in nodes:  
 
 
+    #3.different color in the edge list 
+    for edge in edges:
+        solver.Add(node_color_list[edge[0]] != node_color_list[edge[1]])
 
+    #4.check the node's color are the same for the most connected nodes 
+    for (node, value) in presets:
+        solver.Add(node_color_list[node] == value)
     #################################################matrix dose not work################################################
+    obj = solver.IntVar(lower, upper, "obj")
+    solver.Add(obj == max(node_color_list)+1)
+    objective = solver.Minimize(obj,1)
 
+    solution = solver.Assignment()
+    solution.AddObjective(obj)
+    solution.Add(node_color_list)
+    
+
+    collector = solver.LastSolutionCollector(solution)
+    #search_log = solver.SearchLog(100, obj)
+
+    
+    solver.Solve(solver.Phase(node_color_list,
+                            solver.INT_VAR_SIMPLE,
+                            solver.ASSIGN_MIN_VALUE),
+                            [objective, collector])
+    
+    '''
+    decision_builder = solver.Phase(node_color_list, 
+                                    solver.CHOOSE_FIRST_UNBOUND,
+                                    solver.ASSIGN_MIN_VALUE)
+    collector = solver.LastSolutionCollector()
+    collector.Add(node_color_list)
+    collector.AddObjective(obj)
+    solver.Solve(decision_builder,[objective,collector])
+    '''
+    print("cost:", collector.ObjectiveValue(0))
+    print([(collector.Value(0, node_color_list[node])) for node in nodes])
+
+    best_solution = collector.SolutionCount() - 1
+    solution_node = [collector.Value(best_solution, node_color_list[node]) for node in nodes]
+
+
+    return solution_node
+    '''
     nodes_colors = [[solver.BoolVar('n%s_c%s' % (node,color))for color in colors] for node in nodes]
     obj = solver.IntVar(1, max_allowed_colors,'object') 
     for node in nodes:
@@ -160,13 +214,7 @@ def cp_solver(edges, node_count, cliques, presets):
                            
     return remap(solution)
     #eturn nodes_colors
-
-
-#super greedy algorithms, where you only 
-
-
-
-
+   '''
 
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
@@ -192,32 +240,29 @@ def solve_it(input_data):
     #create a undirected graph 
     graph_undi = create_graph(node_count,edges)
     #use super greedy algorithm
-    solution = super_greedy(graph_undi,node_count)
-    
-    '''
-    sorted_graph = sorted_by_degree(graph_undi)
+    solution_upper = super_greedy(graph_undi,node_count)
+    upperbound = max(solution_upper) + 1   
     preset_colors = most_connected_node(graph_undi,10)
-    cliques = cliques_in_nodes(graph_undi)
-
-    solution = cp_solver(edges, node_count, cliques, preset_colors)
-
-    color_count = max(solution) + 1
-    '''
-
-
-    #use conditioning programming 
-    #all different in cliques 
-    #node color are different in edges 
+    #cliques = cliques_in_nodes(graph_undi)
+    max_edges = node_count*(node_count-1)
+    lowerbound = int(0.1*(edge_count/max_edges)*node_count)
+     
+    solution = cp_solver(edges, node_count, preset_colors,lowerbound,upperbound)
 
     #######################################my code end##############################################
 
     # prepare the solution in the specified output format
     output_data = str(node_count) + ' ' + str(0) + '\n'
-    output_data += ' '.join(map(str, solution))
-    #output_data += '\n' + ' '.join(str(x) for x in edges) 
- 
-
-    return output_data
+    #output_data += ' '.join(map(str, solution))
+    
+    #print(preset_colors)
+    
+    print(lowerbound)
+    print(upperbound)
+    print(solution_upper)
+    print("lala")
+    print(max(solution))
+    #return output_data
 
 
 import sys

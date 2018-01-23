@@ -26,7 +26,9 @@ def remap(nodes):
 #preset color for mosted connected nodes 
 #max color for the graph(fully connected) node_count
 #set timeout   
-def cp_solve(edges, node_count, cliques, presets, max_allowed_colors, timeout):
+
+
+def cp_solve(edges, node_count, presets, max_allowed_colors, timeout):
     #define solver 
     solver = pywraplp.Solver('mixInterger_solver', pywraplp.Solver.CBC_MIXED_INTEGER_PROGRAMMING);
     
@@ -55,8 +57,8 @@ def cp_solve(edges, node_count, cliques, presets, max_allowed_colors, timeout):
             solver.Add(nodes_colors[node][color] == (color == value))
 
     #all nodes in cliques are different         
-    for clique in cliques:
-        solver.Add(solver.AllDifferent([nodes_values[node] for node in clique]))
+    #for clique in cliques:
+    #    solver.Add(solver.AllDifferent([nodes_values[node] for node in clique]))
         
 
     objective = solver.Minimize(obj)
@@ -70,6 +72,7 @@ def cp_solve(edges, node_count, cliques, presets, max_allowed_colors, timeout):
     solver.SetTimeLimit(timeout)
     result_status = solver.Solve()
     assert result_status == pywraplp.Solver.OPTIMAL
+
     solution = [sum([color if nodes_colors[node][color].SolutionValue() > 0 else 0 for color in colors]) for node in nodes]
 
     #solution = solver.Assignment()
@@ -180,17 +183,18 @@ def solve_it(input_data):
     
     #create a graph     
     G = get_graph(node_count, edges)
-    #solution = super_greedy(G)
+    #solution_ub = super_greedy(G)
+    #color_ub = max(solution_ub) + 1 
     #######################################my code start##############################################
 
     presets = preset_most_connected(G, 12)
     #print (presets)
-    cliques = cliques_for_nodes(G, [preset[0] for preset in presets])
+    #cliques = cliques_for_nodes(G, [preset[0] for preset in presets])
     #print (cliques)
     solution = [node_count]
     
     for lap in range(5):
-        solution = cp_solve(edges, node_count, cliques, presets, max(solution), 20 * 2000)
+        solution = cp_solve(edges, node_count, presets, max(solution), 20 * 2000)
         #print (solution)
 
     color_count = max(solution) + 1
